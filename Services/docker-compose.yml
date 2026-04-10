@@ -1,0 +1,30 @@
+services:
+  phpMyAdmin:
+    image: phpmyadmin
+    ports:
+      - "8008:80"
+    networks:
+      - front-tier
+      - back-tier
+    links:
+      - db:db
+    environment:
+      PMA_HOST: db
+      PMA_SSL: 0
+
+  db:
+    image: mariadb:latest
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    networks:
+      - back-tier
+
+volumes:
+  db-data:
+    driver: flocker
+    driver_opts:
+      size: "10GiB"
+
+networks:
+  front-tier: {}
+  back-tier: {}
