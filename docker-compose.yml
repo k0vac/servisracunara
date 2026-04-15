@@ -19,6 +19,18 @@ services:
     networks:
       - back-tier
 
+  be:
+    build: ./BE
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./BE:/app
+    networks:
+      - front-tier
+      - back-tier
+    links:
+      - db:db
+
 volumes:
   db-data:
     driver: flocker
