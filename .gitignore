@@ -116,6 +116,8 @@ dist
 # DynamoDB Local files
 .dynamodb/
 
+BE_Deprecated/
+
 # Firebase cache directory
 .firebase/
 

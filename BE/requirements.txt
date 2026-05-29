@@ -21,6 +21,7 @@ pydantic_core==2.41.5
 Pygments==2.20.0
 python-dateutil==2.9.0.post0
 python-slugify==8.0.4
+PyMySQL==1.1.2
 PyYAML==6.0.3
 requests==2.33.1
 rich==14.3.3
