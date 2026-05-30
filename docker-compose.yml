@@ -16,6 +16,9 @@ services:
     image: mariadb:latest
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: servisracunara
+    volumes:
+      - db-data:/var/lib/mysql
     networks:
       - back-tier
 
@@ -25,17 +28,20 @@ services:
       - "8000:8000"
     volumes:
       - ./BE:/app
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PASSWORD: ${DB_ROOT_PASSWORD}
+      DB_NAME: servisracunara
+    depends_on:
+      - db
     networks:
       - front-tier
       - back-tier
-    links:
-      - db:db
 
 volumes:
   db-data:
-    driver: flocker
-    driver_opts:
-      size: "10GiB"
 
 networks:
   front-tier: {}
