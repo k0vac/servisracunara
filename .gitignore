@@ -120,6 +120,7 @@ BE_Deprecated/
 
 # Firebase cache directory
 .firebase/
+.ssh
 
 # TernJS port file
 .tern-port
