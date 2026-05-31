@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import { useAuthStore } from '@/stores/auth'
 import CasesView from '@/views/CasesView.vue'
+import InventoryView from '@/views/InventoryView.vue'
 import LoginView from '@/views/LoginView.vue'
 
 const router = createRouter({
@@ -27,6 +28,11 @@ const router = createRouter({
           path: 'cases',
           name: 'cases',
           component: CasesView,
+        },
+        {
+          path: 'inventory',
+          name: 'inventory',
+          component: InventoryView,
         },
       ],
     },

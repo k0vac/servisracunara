@@ -63,3 +63,30 @@ export interface CaseDetail {
   closed_at: string | null
   events: CaseEvent[]
 }
+
+export interface Category {
+  id: number
+  name: string
+}
+
+export interface PartListItem {
+  id: number
+  name: string
+  category_id: number | null
+  category_name: string | null
+  unit_price: string
+  quantity_on_hand: number
+  low_stock_threshold: number | null
+  is_active: boolean
+  is_low_stock: boolean
+  created_at: string
+}
+
+export interface PartDetail extends PartListItem {
+  notes: string | null
+}
+
+export interface PartListResponse {
+  items: PartListItem[]
+  total: number
+}

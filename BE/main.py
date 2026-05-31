@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import config
-from routers import auth, cases
+from routers import auth, cases, inventory
 
 app = FastAPI(title="Servis Racunara API")
 
@@ -16,6 +16,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(cases.router)
+app.include_router(inventory.router)
 
 
 @app.get("/health")
