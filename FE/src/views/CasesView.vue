@@ -2,7 +2,9 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import { fetchCases } from '@/api/cases'
+import CaseDetailModal from '@/components/cases/CaseDetailModal.vue'
 import CaseStatusBadge from '@/components/cases/CaseStatusBadge.vue'
+import NewCaseModal from '@/components/cases/NewCaseModal.vue'
 import type { CaseListItem, CaseStatus } from '@/types'
 import { casePriorityLabels, formatDate } from '@/utils/cases'
 
@@ -11,6 +13,8 @@ const loading = ref(true)
 const error = ref('')
 const search = ref('')
 const statusFilter = ref<CaseStatus | 'all'>('all')
+const showNewCaseModal = ref(false)
+const selectedCaseId = ref<number | null>(null)
 
 const statusTabs: Array<{ label: string; value: CaseStatus | 'all' }> = [
   { label: 'All', value: 'all' },
@@ -55,6 +59,19 @@ watch(search, () => {
 onMounted(() => {
   void loadCases()
 })
+
+function handleCaseCreated() {
+  statusFilter.value = 'all'
+  void loadCases()
+}
+
+function openCase(caseId: number) {
+  selectedCaseId.value = caseId
+}
+
+function closeCaseDetail() {
+  selectedCaseId.value = null
+}
 </script>
 
 <template>
@@ -64,7 +81,12 @@ onMounted(() => {
         <h1>Cases</h1>
         <p>Track open repairs, assignments, and payment status.</p>
       </div>
-      <div class="page-header__meta">{{ filteredCount }} shown</div>
+      <div class="page-header__actions">
+        <div class="page-header__meta">{{ filteredCount }} shown</div>
+        <button type="button" class="new-case-button" @click="showNewCaseModal = true">
+          New case
+        </button>
+      </div>
     </header>
 
     <div class="toolbar">
@@ -112,7 +134,12 @@ onMounted(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in cases" :key="item.id">
+            <tr
+              v-for="item in cases"
+              :key="item.id"
+              class="case-row"
+              @click="openCase(item.id)"
+            >
               <td class="mono">{{ item.ticket_number }}</td>
               <td>
                 <div class="stack">
@@ -137,6 +164,18 @@ onMounted(() => {
         </table>
       </div>
     </div>
+
+    <NewCaseModal
+      v-if="showNewCaseModal"
+      @close="showNewCaseModal = false"
+      @created="handleCaseCreated"
+    />
+
+    <CaseDetailModal
+      v-if="selectedCaseId !== null"
+      :case-id="selectedCaseId"
+      @close="closeCaseDetail"
+    />
   </section>
 </template>
 
@@ -170,6 +209,26 @@ onMounted(() => {
   background: var(--color-surface-muted);
   color: var(--color-text-muted);
   font-size: 0.85rem;
+}
+
+.page-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.new-case-button {
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.65rem 1rem;
+  background: var(--color-accent);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.new-case-button:hover {
+  filter: brightness(1.05);
 }
 
 .toolbar {
@@ -249,6 +308,10 @@ th {
 
 tbody tr:hover {
   background: rgba(37, 99, 235, 0.04);
+}
+
+.case-row {
+  cursor: pointer;
 }
 
 .stack {

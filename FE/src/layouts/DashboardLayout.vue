@@ -32,10 +32,9 @@ async function handleLogout() {
   <div class="dashboard">
     <aside class="sidebar">
       <div class="sidebar__brand">
-        <span class="sidebar__logo">SR</span>
+        <span class="sidebar__logo">VS</span>
         <div>
-          <strong>Servis Racunara</strong>
-          <span>Back office</span>
+          <strong>Velja Servis</strong>
         </div>
       </div>
 
