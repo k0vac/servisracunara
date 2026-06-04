@@ -175,6 +175,7 @@ function closeCaseDetail() {
       v-if="selectedCaseId !== null"
       :case-id="selectedCaseId"
       @close="closeCaseDetail"
+      @updated="loadCases"
     />
   </section>
 </template>

@@ -48,6 +48,10 @@ class Case(Base, TimestampMixin):
         back_populates="case",
         cascade="all, delete-orphan",
     )
+    labor_entries: Mapped[list["CaseLabor"]] = relationship(
+        back_populates="case",
+        cascade="all, delete-orphan",
+    )
     invoice: Mapped["Invoice | None"] = relationship(
         back_populates="case",
         uselist=False,
@@ -76,3 +80,5 @@ class CaseEvent(Base, TimestampMixin):
 
     case: Mapped["Case"] = relationship(back_populates="events")
     created_by_user: Mapped["User | None"] = relationship(back_populates="case_events")
+    part_usages: Mapped[list["PartUsage"]] = relationship(back_populates="case_event")
+    labor_entries: Mapped[list["CaseLabor"]] = relationship(back_populates="case_event")

@@ -30,8 +30,13 @@ class PartUsage(Base):
         server_default=func.now(),
         nullable=False,
     )
+    case_event_id: Mapped[int | None] = mapped_column(
+        ForeignKey("case_events.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     case: Mapped["Case"] = relationship(back_populates="part_usages")
     part: Mapped["Part"] = relationship(back_populates="part_usages")
     recorded_by_user: Mapped["User | None"] = relationship(back_populates="part_usages")
+    case_event: Mapped["CaseEvent | None"] = relationship(back_populates="part_usages")

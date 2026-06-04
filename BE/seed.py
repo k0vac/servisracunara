@@ -3,7 +3,7 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from database import SessionLocal
-from models import ShopSettings, User, UserRole
+from models import LaborType, ShopSettings, User, UserRole
 from security import hash_password
 
 
@@ -33,6 +33,16 @@ def seed() -> None:
                     payment_terms=None,
                 )
             )
+
+        default_labor_types = [
+            ("General repair", Decimal("2500.00")),
+            ("Diagnostic", Decimal("3000.00")),
+            ("Software / OS", Decimal("2000.00")),
+        ]
+        for name, rate in default_labor_types:
+            existing_type = session.scalar(select(LaborType).where(LaborType.name == name))
+            if existing_type is None:
+                session.add(LaborType(name=name, hourly_rate=rate, is_active=True))
 
         session.commit()
         print("Seed data applied")

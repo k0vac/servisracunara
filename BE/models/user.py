@@ -33,3 +33,4 @@ class User(Base, TimestampMixin):
     )
     case_events: Mapped[list["CaseEvent"]] = relationship(back_populates="created_by_user")
     part_usages: Mapped[list["PartUsage"]] = relationship(back_populates="recorded_by_user")
+    labor_entries: Mapped[list["CaseLabor"]] = relationship(back_populates="recorded_by_user")

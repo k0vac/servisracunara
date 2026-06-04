@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { CaseDetail, CaseListResponse, CasePriority, CaseStatus } from '@/types'
+import type { CaseDetail, CaseEvent, CaseListResponse, CasePriority, CaseStatus } from '@/types'
 
 export interface CreateCasePayload {
   customer_name: string
@@ -36,4 +36,19 @@ export function createCase(payload: CreateCasePayload) {
 
 export function fetchCase(caseId: number) {
   return api<CaseDetail>(`/api/cases/${caseId}`)
+}
+
+export interface CreateCaseEventPayload {
+  event_type: CaseEvent['event_type']
+  description: string
+  is_public: boolean
+  parts_used?: Array<{ part_id: number; quantity: number }>
+  labor?: Array<{ labor_type_id: number; hours: number }>
+}
+
+export function createCaseEvent(caseId: number, payload: CreateCaseEventPayload) {
+  return api<CaseEvent>(`/api/cases/${caseId}/events`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }

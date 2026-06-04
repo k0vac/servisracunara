@@ -44,6 +44,29 @@ export interface CaseEvent {
   is_public: boolean
   created_by_username: string | null
   created_at: string
+  parts_used: CaseEventPartItem[]
+  labor: CaseEventLaborItem[]
+}
+
+export interface CaseEventPartItem {
+  part_name: string
+  quantity: number
+  unit_price_at_time: string
+  line_total: string
+}
+
+export interface CaseEventLaborItem {
+  labor_type_name: string
+  hours: string
+  rate_at_time: string
+  line_total: string
+}
+
+export interface LaborType {
+  id: number
+  name: string
+  hourly_rate: string
+  is_active: boolean
 }
 
 export interface CaseDetail {
