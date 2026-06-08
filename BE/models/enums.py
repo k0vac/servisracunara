@@ -27,9 +27,9 @@ class CaseEventType(str, enum.Enum):
 
 
 class InvoiceStatus(str, enum.Enum):
-    DRAFT = "draft"
-    ISSUED = "issued"
+    PENDING = "pending"
     PAID = "paid"
+    CANCELLED = "cancelled"
 
 
 class InvoiceLineItemSource(str, enum.Enum):

@@ -3,6 +3,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field, model_validator
 
+from schemas.invoice import CaseInvoiceSummary
+
 from models.enums import CaseEventType, CasePriority
 
 
@@ -63,6 +65,8 @@ class CaseDetailResponse(BaseModel):
     created_at: datetime
     closed_at: datetime | None
     events: list[CaseEventItem]
+    invoice: CaseInvoiceSummary | None = None
+    is_locked: bool = False
 
 
 class CaseListResponse(BaseModel):

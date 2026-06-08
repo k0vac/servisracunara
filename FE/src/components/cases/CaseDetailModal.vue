@@ -3,11 +3,17 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { createCaseEvent, fetchCase } from '@/api/cases'
 import { fetchParts } from '@/api/inventory'
+import {
+  generateCasePayment,
+  markCaseInvoicePaid,
+  retractCaseInvoice,
+} from '@/api/invoices'
 import { fetchLaborTypes } from '@/api/labor'
 import CaseStatusBadge from '@/components/cases/CaseStatusBadge.vue'
 import type { CaseDetail, CaseEventType, LaborType, PartListItem } from '@/types'
 import { caseEventTypeLabels, casePriorityLabels, formatDate } from '@/utils/cases'
 import { formatMoney } from '@/utils/inventory'
+import { invoiceLineSourceLabels, invoiceStatusLabels } from '@/utils/invoices'
 
 const props = defineProps<{
   caseId: number
@@ -28,6 +34,9 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const showUpdateForm = ref(false)
+const showRetractForm = ref(false)
+const retractReason = ref('')
+const invoiceActionLoading = ref(false)
 
 const updateForm = reactive({
   event_type: 'note' as CaseEventType,
@@ -41,6 +50,33 @@ const repairLabor = ref<RepairLaborRow[]>([])
 const manualEventTypes: CaseEventType[] = ['note', 'diagnosis', 'repair']
 
 const isRepairUpdate = computed(() => updateForm.event_type === 'repair')
+
+const activeInvoice = computed(() => {
+  const invoice = caseDetail.value?.invoice
+  if (!invoice) {
+    return null
+  }
+
+  return invoice.status === 'pending' || invoice.status === 'paid' ? invoice : null
+})
+
+const cancelledInvoice = computed(() =>
+  caseDetail.value?.invoice?.status === 'cancelled' ? caseDetail.value.invoice : null,
+)
+
+const isCaseLocked = computed(() => caseDetail.value?.is_locked ?? false)
+
+const canGeneratePayment = computed(() => {
+  if (!caseDetail.value || isCaseLocked.value) {
+    return false
+  }
+
+  return !activeInvoice.value
+})
+
+const canMarkPaid = computed(() => activeInvoice.value?.status === 'pending')
+
+const canRetract = computed(() => activeInvoice.value?.status === 'pending')
 
 function laborRate(laborTypeId: number | '') {
   if (laborTypeId === '') {
@@ -92,6 +128,71 @@ function resetUpdateForm() {
   updateForm.is_public = false
   resetRepairRows()
   showUpdateForm.value = false
+}
+
+function resetRetractForm() {
+  retractReason.value = ''
+  showRetractForm.value = false
+}
+
+async function handleGeneratePayment() {
+  if (!caseDetail.value) {
+    return
+  }
+
+  invoiceActionLoading.value = true
+  error.value = ''
+
+  try {
+    await generateCasePayment(caseDetail.value.id)
+    resetRetractForm()
+    await loadCase()
+    emit('updated')
+  } catch (actionError) {
+    error.value =
+      actionError instanceof Error ? actionError.message : 'Failed to generate payment'
+  } finally {
+    invoiceActionLoading.value = false
+  }
+}
+
+async function handleMarkPaid() {
+  if (!caseDetail.value) {
+    return
+  }
+
+  invoiceActionLoading.value = true
+  error.value = ''
+
+  try {
+    await markCaseInvoicePaid(caseDetail.value.id)
+    await loadCase()
+    emit('updated')
+  } catch (actionError) {
+    error.value = actionError instanceof Error ? actionError.message : 'Failed to mark as paid'
+  } finally {
+    invoiceActionLoading.value = false
+  }
+}
+
+async function handleRetractInvoice() {
+  if (!caseDetail.value || !retractReason.value.trim()) {
+    return
+  }
+
+  invoiceActionLoading.value = true
+  error.value = ''
+
+  try {
+    await retractCaseInvoice(caseDetail.value.id, retractReason.value.trim())
+    resetRetractForm()
+    await loadCase()
+    emit('updated')
+  } catch (actionError) {
+    error.value = actionError instanceof Error ? actionError.message : 'Failed to retract invoice'
+  } finally {
+    invoiceActionLoading.value = false
+  }
 }
 
 function addRepairPartRow() {
@@ -172,6 +273,7 @@ watch(
   () => props.caseId,
   () => {
     resetUpdateForm()
+    resetRetractForm()
     void loadCase()
   },
 )
@@ -249,13 +351,176 @@ onMounted(() => {
             </dl>
           </section>
 
+          <section class="section payment-section">
+            <div class="section__header">
+              <h3>Payment</h3>
+            </div>
+
+            <p v-if="isCaseLocked && activeInvoice" class="lock-banner">
+              This case is locked while invoice
+              <strong>{{ activeInvoice.invoice_number }}</strong>
+              is {{ invoiceStatusLabels[activeInvoice.status].toLowerCase() }}.
+              Retract the invoice to make changes again.
+            </p>
+
+            <p v-else-if="isCaseLocked && caseDetail.status === 'closed'" class="lock-banner">
+              This case is closed and paid.
+            </p>
+
+            <div v-if="cancelledInvoice" class="cancelled-banner">
+              <strong>Previous invoice retracted</strong>
+              <p>{{ cancelledInvoice.retraction_reason }}</p>
+              <span v-if="cancelledInvoice.retracted_at">
+                {{ formatDate(cancelledInvoice.retracted_at) }}
+              </span>
+            </div>
+
+            <div v-if="activeInvoice || cancelledInvoice" class="invoice-card">
+              <div class="invoice-card__header">
+                <div>
+                  <strong>{{
+                    (activeInvoice ?? cancelledInvoice)?.invoice_number
+                  }}</strong>
+                  <span
+                    class="invoice-status"
+                    :class="`invoice-status--${(activeInvoice ?? cancelledInvoice)?.status}`"
+                  >
+                    {{
+                      invoiceStatusLabels[
+                        (activeInvoice ?? cancelledInvoice)!.status
+                      ]
+                    }}
+                  </span>
+                </div>
+                <span class="invoice-card__total">
+                  {{ formatMoney((activeInvoice ?? cancelledInvoice)!.total) }}
+                </span>
+              </div>
+
+              <table class="invoice-lines">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Unit</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="line in (activeInvoice ?? cancelledInvoice)!.line_items"
+                    :key="line.id"
+                  >
+                    <td>
+                      <span class="invoice-lines__type">
+                        {{ invoiceLineSourceLabels[line.source] }}
+                      </span>
+                      {{ line.description }}
+                    </td>
+                    <td>{{ line.quantity }}</td>
+                    <td>{{ formatMoney(line.unit_price) }}</td>
+                    <td>{{ formatMoney(line.line_total) }}</td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="3">Subtotal</td>
+                    <td>{{ formatMoney((activeInvoice ?? cancelledInvoice)!.subtotal) }}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="3">
+                      Tax ({{ (activeInvoice ?? cancelledInvoice)!.tax_rate }}%)
+                    </td>
+                    <td>{{ formatMoney((activeInvoice ?? cancelledInvoice)!.tax_amount) }}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="3"><strong>Total</strong></td>
+                    <td>
+                      <strong>{{ formatMoney((activeInvoice ?? cancelledInvoice)!.total) }}</strong>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div v-else class="payment-empty">
+              No invoice yet. Generate payment when repair work is complete.
+            </div>
+
+            <div class="payment-actions">
+              <button
+                v-if="canGeneratePayment"
+                type="button"
+                class="payment-button"
+                :disabled="invoiceActionLoading"
+                @click="handleGeneratePayment"
+              >
+                {{ invoiceActionLoading ? 'Working...' : 'Generate payment' }}
+              </button>
+
+              <button
+                v-if="canMarkPaid"
+                type="button"
+                class="payment-button payment-button--success"
+                :disabled="invoiceActionLoading"
+                @click="handleMarkPaid"
+              >
+                Mark as paid
+              </button>
+
+              <button
+                v-if="canRetract && !showRetractForm"
+                type="button"
+                class="payment-button payment-button--ghost"
+                :disabled="invoiceActionLoading"
+                @click="showRetractForm = true"
+              >
+                Retract invoice
+              </button>
+            </div>
+
+            <form
+              v-if="showRetractForm"
+              class="retract-form"
+              @submit.prevent="handleRetractInvoice"
+            >
+              <label>
+                <span>Why are you retracting this invoice?</span>
+                <textarea
+                  v-model="retractReason"
+                  rows="3"
+                  required
+                  placeholder="e.g. Wrong parts listed, customer changed mind..."
+                />
+              </label>
+              <div class="retract-form__actions">
+                <button
+                  type="button"
+                  class="inline-button inline-button--ghost"
+                  @click="resetRetractForm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="payment-button payment-button--danger"
+                  :disabled="invoiceActionLoading || !retractReason.trim()"
+                >
+                  {{ invoiceActionLoading ? 'Retracting...' : 'Confirm retract' }}
+                </button>
+              </div>
+            </form>
+
+            <p v-if="error" class="payment-error">{{ error }}</p>
+          </section>
+
           <section class="section">
             <div class="section__header">
               <h3>Update log</h3>
               <div class="section__actions">
                 <span>{{ caseDetail.events.length }} entries</span>
                 <button
-                  v-if="caseDetail.status !== 'closed'"
+                  v-if="!isCaseLocked"
                   type="button"
                   class="add-update-button"
                   @click="showUpdateForm = !showUpdateForm"
@@ -265,8 +530,12 @@ onMounted(() => {
               </div>
             </div>
 
+            <p v-if="isCaseLocked" class="update-locked-note">
+              Updates are disabled while this case has an active invoice or is closed.
+            </p>
+
             <form
-              v-if="showUpdateForm && caseDetail.status !== 'closed'"
+              v-if="showUpdateForm && !isCaseLocked"
               class="update-form"
               @submit.prevent="submitUpdate"
             >
@@ -551,13 +820,17 @@ onMounted(() => {
 }
 
 .update-form input,
-.update-form select,
 .update-form textarea {
   border: 1px solid var(--color-border);
   border-radius: 0.75rem;
   padding: 0.65rem 0.75rem;
   background: var(--color-background);
   color: var(--color-text);
+}
+
+.update-form select {
+  min-width: 0;
+  width: 100%;
 }
 
 .checkbox-row {
@@ -603,13 +876,17 @@ onMounted(() => {
   grid-template-columns: minmax(0, 1.4fr) 90px 110px auto;
 }
 
-.repair-row select,
 .repair-row input {
   border: 1px solid var(--color-border);
   border-radius: 0.75rem;
   padding: 0.55rem 0.65rem;
   background: var(--color-background);
   color: var(--color-text);
+}
+
+.repair-row select {
+  min-width: 0;
+  padding: 0.55rem 2.1rem 0.55rem 0.65rem;
 }
 
 .repair-row__total {
@@ -751,6 +1028,192 @@ dd {
   background: #fef2f2;
   border: 1px solid #fecaca;
   border-radius: 0.75rem;
+}
+
+.lock-banner,
+.update-locked-note {
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.75rem;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 0.9rem;
+  margin-bottom: 0.85rem;
+}
+
+.cancelled-banner {
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid var(--color-border);
+  margin-bottom: 0.85rem;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+}
+
+.cancelled-banner strong {
+  display: block;
+  color: var(--color-heading);
+  margin-bottom: 0.25rem;
+}
+
+.payment-empty {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 0.85rem;
+}
+
+.invoice-card {
+  border: 1px solid var(--color-border);
+  border-radius: 0.85rem;
+  overflow: hidden;
+  margin-bottom: 0.85rem;
+}
+
+.invoice-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: var(--color-surface-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.invoice-card__total {
+  font-weight: 700;
+  color: var(--color-heading);
+}
+
+.invoice-status {
+  margin-left: 0.5rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.invoice-status--pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.invoice-status--paid {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.invoice-status--cancelled {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.invoice-lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.invoice-lines th,
+.invoice-lines td {
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.invoice-lines th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.invoice-lines tfoot td {
+  border-bottom: none;
+}
+
+.invoice-lines__type {
+  display: inline-block;
+  margin-right: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.payment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.payment-button {
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.65rem 1rem;
+  background: var(--color-accent);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.payment-button--success {
+  background: #15803d;
+}
+
+.payment-button--danger {
+  background: #b91c1c;
+}
+
+.payment-button--ghost {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.payment-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.retract-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.85rem;
+  background: var(--color-surface-muted);
+}
+
+.retract-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.retract-form label span {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.retract-form textarea {
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  background: var(--color-background);
+  color: var(--color-text);
+  resize: vertical;
+}
+
+.retract-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.payment-error {
+  color: #b91c1c;
+  font-size: 0.88rem;
 }
 
 @media (max-width: 640px) {

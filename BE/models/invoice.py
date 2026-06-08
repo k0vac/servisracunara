@@ -20,9 +20,18 @@ class Invoice(Base, TimestampMixin):
     )
     customer_name: Mapped[str] = mapped_column(String(128), nullable=False)
     status: Mapped[InvoiceStatus] = mapped_column(
-        Enum(InvoiceStatus, native_enum=False, length=16),
+        Enum(
+            InvoiceStatus,
+            native_enum=False,
+            length=16,
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+        ),
         nullable=False,
-        default=InvoiceStatus.DRAFT,
+        default=InvoiceStatus.PENDING,
+    )
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
     subtotal: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
     tax_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, default=0)
@@ -31,8 +40,11 @@ class Invoice(Base, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    retraction_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retracted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     case: Mapped["Case"] = relationship(back_populates="invoice")
+    created_by_user: Mapped["User | None"] = relationship()
     line_items: Mapped[list["InvoiceLineItem"]] = relationship(
         back_populates="invoice",
         cascade="all, delete-orphan",
@@ -60,6 +72,11 @@ class InvoiceLineItem(Base):
         ForeignKey("part_usages.id", ondelete="SET NULL"),
         nullable=True,
     )
+    case_labor_id: Mapped[int | None] = mapped_column(
+        ForeignKey("case_labor.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     invoice: Mapped["Invoice"] = relationship(back_populates="line_items")
     part_usage: Mapped["PartUsage | None"] = relationship()
+    case_labor: Mapped["CaseLabor | None"] = relationship()

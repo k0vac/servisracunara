@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
 from deps import get_current_user
-from models import Case, CaseEvent, CaseEventType, CaseLabor, CaseStatus, PartUsage, User
+from models import Case, CaseEvent, CaseEventType, CaseLabor, CaseStatus, Invoice, PartUsage, User
 from schemas.case import (
     CaseDetailResponse,
     CaseEventItem,
@@ -17,6 +17,8 @@ from schemas.case import (
     CreateCaseEventRequest,
     CreateCaseRequest,
 )
+from schemas.invoice import CaseInvoiceSummary, InvoiceLineItemResponse
+from services.invoice import case_edit_blocked, invoice_is_active
 from services.repair import record_repair_labor, record_repair_parts
 
 router = APIRouter(prefix="/api/cases", tags=["cases"])
@@ -71,6 +73,36 @@ def _to_list_item(case: Case) -> CaseListItem:
     )
 
 
+def _to_invoice_summary(invoice: Invoice | None) -> CaseInvoiceSummary | None:
+    if invoice is None:
+        return None
+
+    return CaseInvoiceSummary(
+        id=invoice.id,
+        invoice_number=invoice.invoice_number,
+        status=invoice.status.value,
+        subtotal=invoice.subtotal,
+        tax_rate=invoice.tax_rate,
+        tax_amount=invoice.tax_amount,
+        total=invoice.total,
+        issued_at=invoice.issued_at,
+        paid_at=invoice.paid_at,
+        retraction_reason=invoice.retraction_reason,
+        retracted_at=invoice.retracted_at,
+        line_items=[
+            InvoiceLineItemResponse(
+                id=item.id,
+                description=item.description,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                line_total=item.line_total,
+                source=item.source.value,
+            )
+            for item in invoice.line_items
+        ],
+    )
+
+
 def _to_detail(case: Case) -> CaseDetailResponse:
     return CaseDetailResponse(
         id=case.id,
@@ -88,6 +120,8 @@ def _to_detail(case: Case) -> CaseDetailResponse:
         created_at=case.created_at,
         closed_at=case.closed_at,
         events=[_to_event_item(event) for event in case.events],
+        invoice=_to_invoice_summary(case.invoice),
+        is_locked=case.status == CaseStatus.CLOSED or invoice_is_active(case.invoice),
     )
 
 
@@ -99,6 +133,7 @@ def _load_case(db: Session, case_id: int) -> Case | None:
             joinedload(Case.events).joinedload(CaseEvent.created_by_user),
             joinedload(Case.events).joinedload(CaseEvent.part_usages).joinedload(PartUsage.part),
             joinedload(Case.events).joinedload(CaseEvent.labor_entries).joinedload(CaseLabor.labor_type),
+            joinedload(Case.invoice).joinedload(Invoice.line_items),
         )
         .where(Case.id == case_id)
     )
@@ -158,8 +193,9 @@ def create_case_event(
     if case is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
 
-    if case.status == CaseStatus.CLOSED:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot add updates to a closed case")
+    blocked_reason = case_edit_blocked(case)
+    if blocked_reason:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=blocked_reason)
 
     if payload.event_type == CaseEventType.PART_USED:
         raise HTTPException(

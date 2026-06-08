@@ -4,6 +4,7 @@ import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import { useAuthStore } from '@/stores/auth'
 import CasesView from '@/views/CasesView.vue'
 import InventoryView from '@/views/InventoryView.vue'
+import InvoicesView from '@/views/InvoicesView.vue'
 import LoginView from '@/views/LoginView.vue'
 
 const router = createRouter({
@@ -33,6 +34,11 @@ const router = createRouter({
           path: 'inventory',
           name: 'inventory',
           component: InventoryView,
+        },
+        {
+          path: 'invoices',
+          name: 'invoices',
+          component: InvoicesView,
         },
       ],
     },

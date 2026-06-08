@@ -180,13 +180,16 @@ label span {
 }
 
 input,
-select,
 textarea {
   border: 1px solid var(--color-border);
   border-radius: 0.75rem;
   padding: 0.7rem 0.85rem;
   background: var(--color-background);
   color: var(--color-text);
+}
+
+select {
+  width: 100%;
 }
 
 textarea {

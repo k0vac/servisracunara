@@ -11,7 +11,7 @@ const router = useRouter()
 const navItems = [
   { label: 'Cases', to: '/cases', disabled: false },
   { label: 'Inventory', to: '/inventory', disabled: false },
-  { label: 'Invoices', to: '/invoices', disabled: true },
+  { label: 'Invoices', to: '/invoices', disabled: false },
 ]
 
 const pageTitle = computed(() => {
@@ -21,6 +21,10 @@ const pageTitle = computed(() => {
 
   if (route.path.startsWith('/inventory')) {
     return 'Inventory'
+  }
+
+  if (route.path.startsWith('/invoices')) {
+    return 'Invoices'
   }
 
   return 'Dashboard'

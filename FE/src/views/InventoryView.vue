@@ -240,18 +240,19 @@ onMounted(() => {
   align-items: center;
 }
 
-.search,
-.select {
+.search {
   border: 1px solid var(--color-border);
   border-radius: 0.75rem;
   padding: 0.65rem 0.85rem;
   background: var(--color-surface);
   color: var(--color-text);
-}
-
-.search {
   min-width: min(100%, 280px);
   flex: 1;
+}
+
+.select {
+  min-width: 10rem;
+  background-color: var(--color-surface);
 }
 
 .checkbox {
