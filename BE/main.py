@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import config
-from routers import auth, cases, inventory, invoices, labor
+from routers import auth, cases, inventory, invoices, labor, public
 
 app = FastAPI(title="Servis Racunara API")
 
@@ -19,6 +19,7 @@ app.include_router(cases.router)
 app.include_router(inventory.router)
 app.include_router(labor.router)
 app.include_router(invoices.router)
+app.include_router(public.router)
 
 
 @app.get("/health")

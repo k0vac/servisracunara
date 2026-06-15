@@ -145,6 +145,24 @@ export interface InvoiceListResponse {
   total: number
 }
 
+export interface PublicCaseEvent {
+  event_type: CaseEventType
+  description: string
+  created_at: string
+}
+
+export interface PublicCase {
+  ticket_number: string
+  customer_name: string
+  device_type: string
+  device_brand: string
+  device_model: string
+  status: CaseStatus
+  estimated_completion: string | null
+  created_at: string
+  events: PublicCaseEvent[]
+}
+
 export interface Category {
   id: number
   name: string

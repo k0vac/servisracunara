@@ -6,10 +6,17 @@ import CasesView from '@/views/CasesView.vue'
 import InventoryView from '@/views/InventoryView.vue'
 import InvoicesView from '@/views/InvoicesView.vue'
 import LoginView from '@/views/LoginView.vue'
+import PublicLookupView from '@/views/PublicLookupView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/lookup',
+      name: 'lookup',
+      component: PublicLookupView,
+      meta: { public: true },
+    },
     {
       path: '/login',
       name: 'login',
@@ -50,6 +57,10 @@ router.beforeEach(async (to) => {
 
   if (!auth.initialized) {
     await auth.initialize()
+  }
+
+  if (to.meta.public) {
+    return true
   }
 
   if (to.meta.requiresAuth && !auth.user) {

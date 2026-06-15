@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { ApiError } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
@@ -61,6 +61,10 @@ async function handleSubmit() {
       </form>
 
       <p class="login-card__hint">Default admin: admin / password</p>
+
+      <p class="login-card__public">
+        <RouterLink to="/lookup">Track your repair</RouterLink>
+      </p>
     </div>
   </div>
 </template>
@@ -166,5 +170,17 @@ async function handleSubmit() {
   margin-top: 1rem;
   font-size: 0.85rem;
   color: var(--color-text-muted);
+}
+
+.login-card__public {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.login-card__public a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
 }
 </style>
