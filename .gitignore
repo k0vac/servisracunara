@@ -113,6 +113,7 @@ dist
 # FuseBox cache
 .fusebox/
 
+docs
 # DynamoDB Local files
 .dynamodb/
 
@@ -141,3 +142,4 @@ BE_Deprecated/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vscode/settings.json
+.DS_Store
